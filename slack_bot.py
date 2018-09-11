@@ -15,6 +15,8 @@ INSULT_COMMAND = "insult"
 EXIT_COMMAND = "exit"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
+watcher = False
+
 
 def env_setup():
     dotenv_path = os.path.join(os.path.dirname('main.py'), '.env')
@@ -33,10 +35,14 @@ def parse_bot_commands(slack_events):
         command and channel.
         If its not found, then this function returns None, None.
     """
+    print 'test input', slack_events
     for event in slack_events:
         if event["type"] == "message" and "subtype" not in event:
+            print 'event text:', event["text"]
             user_id, message = parse_direct_mention(event["text"])
+            print user_id, starterbot_id
             if user_id == starterbot_id:
+                print 'test output', message, event["channel"]
                 return message, event["channel"]
     return None, None
 
@@ -72,7 +78,10 @@ def handle_command(command, channel):
         insult_name = command_lst[1]
         response = "{} is ranked 14/14 in your cohort".format(insult_name)
     elif command.startswith(EXIT_COMMAND):
-        sys.exit(0)
+        global watcher
+        watcher = True
+        response = "Bye Bye"
+        
 
     # Sends the response back to the channel
     slack_client.api_call(
@@ -88,10 +97,14 @@ if __name__ == "__main__":
         print("Starter Bot connected and running!")
         # Read bot's user ID by calling Web API method `auth.test`
         starterbot_id = slack_client.api_call("auth.test")["user_id"]
-        while True:
+        while not watcher:
+            print watcher
+            print 'running'
             command, channel = parse_bot_commands(slack_client.rtm_read())
             if command:
                 handle_command(command, channel)
             time.sleep(RTM_READ_DELAY)
+        if watcher:
+            sys.exit(0)
     else:
         print("Connection failed. Exception traceback printed above.")
