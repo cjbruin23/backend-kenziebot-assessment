@@ -4,9 +4,15 @@ import re
 import sys
 import signal
 import logging
+import datetime as dt
+import pandas as pd
+import pandas_datareader.data as web
+from matplotlib import style
+import matplotlib  
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 from logging.handlers import RotatingFileHandler
 from slackclient import SlackClient
-from dotenv import load_dotenv
 
 # starterbot's user ID in Slack: value is assigned after the bot starts up
 starterbot_id = None
@@ -16,17 +22,18 @@ RTM_READ_DELAY = 1  # 1 second delay between reading from RTM
 EXAMPLE_COMMAND = "do"
 INSULT_COMMAND = "insult"
 EXIT_COMMAND = "exit"
+FINANCE_COMMAND = "financials"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
 watcher = False
 
 def env_setup():
-    dotenv_path = os.path.join(os.path.dirname('main.py'), '.env')
-    load_dotenv(dotenv_path)
 
     # instantiate Slack client
-    slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
+    print(os.getenv('SLACK_BOT_TOKEN', 'Token not found'))
+    slack_client = SlackClient(os.getenv('SLACK_BOT_TOKEN', 'Token not found'))
     return slack_client
+
 
 def signal_handler(sig_num, frame):
     if sig_num == 2:
@@ -47,17 +54,12 @@ def configure_logging():
     logging.basicConfig(filename='slack_bot.log', 
                         level=logging.INFO, 
                         format='%(asctime)s - %(levelname)s - %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S') 
+                        datefmt='%Y-%m-%d %H:%M:%S')
 
     logging.basicConfig(filename='slack_bot.log',
                         level=logging.WARN,
                         format='%(asctime)s - %levelname)s - %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
-
-    # fh = logging.FileHandler('slack_bot.log')
-    # fh.setLevel(logging.INFO)
-    # fh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', '%Y-%m-%d %H:%M:%S'))
-    # logger.getLogger('').addHandler(fh)
 
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.WARNING)
@@ -120,6 +122,11 @@ def handle_command(command, channel, slack_client):
         command_lst = command.split(' ')
         insult_name = command_lst[1]
         response = "{} is ranked 14/14 in your cohort".format(insult_name)
+    elif command.startswith(FINANCE_COMMAND):
+        start = dt.datetime(2000,1,1)
+        end = dt.datetime(2016,12,31)
+        df = web.DataReader('TSLA', 'yahoo', start, end)
+        print(df.head())
     elif command.startswith(EXIT_COMMAND):
         global watcher
         watcher = True
