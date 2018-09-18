@@ -2,6 +2,9 @@ import os
 import time
 import re
 import sys
+import signal
+import logging
+from logging.handlers import RotatingFileHandler
 from slackclient import SlackClient
 from dotenv import load_dotenv
 
@@ -17,7 +20,6 @@ MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
 watcher = False
 
-
 def env_setup():
     dotenv_path = os.path.join(os.path.dirname('main.py'), '.env')
     load_dotenv(dotenv_path)
@@ -26,8 +28,53 @@ def env_setup():
     slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
     return slack_client
 
+def signal_handler(sig_num, frame):
+    if sig_num == 2:
+        logging.warn('Shut down through command line')
+        logger.warn('Shut down through command line')
 
-def parse_bot_commands(slack_events):
+        sys.exit(0)
+
+
+def configure_logging():
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    global logger
+    logger = logging.getLogger(__name__)
+
+    logging.basicConfig(filename='slack_bot.log', 
+                        level=logging.INFO, 
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S') 
+
+    logging.basicConfig(filename='slack_bot.log',
+                        level=logging.WARN,
+                        format='%(asctime)s - %levelname)s - %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+
+    # fh = logging.FileHandler('slack_bot.log')
+    # fh.setLevel(logging.INFO)
+    # fh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', '%Y-%m-%d %H:%M:%S'))
+    # logger.getLogger('').addHandler(fh)
+
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.WARNING)
+    ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(ch)
+
+
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(sh)
+
+    rh = logging.handlers.RotatingFileHandler('slack_bot.log', maxBytes=1000, backupCount=5)
+    logger.addHandler(rh)
+
+
+def parse_bot_commands(slack_events, starterbot_id):
     """
         Parses a list of events coming from the Slack RTM API to
         find bot commands.
@@ -35,14 +82,10 @@ def parse_bot_commands(slack_events):
         command and channel.
         If its not found, then this function returns None, None.
     """
-    print 'test input', slack_events
     for event in slack_events:
         if event["type"] == "message" and "subtype" not in event:
-            print 'event text:', event["text"]
             user_id, message = parse_direct_mention(event["text"])
-            print user_id, starterbot_id
             if user_id == starterbot_id:
-                print 'test output', message, event["channel"]
                 return message, event["channel"]
     return None, None
 
@@ -60,7 +103,7 @@ def parse_direct_mention(message_text):
             matches.group(2).strip()) if matches else (None, None)
 
 
-def handle_command(command, channel):
+def handle_command(command, channel, slack_client):
     """
         Executes bot command if the command is known
     """
@@ -90,21 +133,34 @@ def handle_command(command, channel):
         text=response or default_response
     )
 
+    
+def main():
+    
+    slack_client = env_setup()
+    configure_logging()
+    try:
+        if slack_client.rtm_connect(with_team_state=False):
+            print("Starter Bot connected and running!")
+            # logging.info('Bot started up')
+            logger.info('Bot started up')
+
+            # Read bot's user ID by calling Web API method `auth.test`
+            starterbot_id = slack_client.api_call("auth.test")["user_id"]
+            while not watcher:
+                command, channel = parse_bot_commands(slack_client.rtm_read(), starterbot_id)
+                if command:
+                    # Formatting has a string conversion that helped avoid the TypeError
+                    logging.info("Bot command given: {}".format(command.encode('utf-8')))
+                    logger.info("Bot command given: {}".format(command.encode('utf-8')))
+                    handle_command(command, channel, slack_client)
+                time.sleep(RTM_READ_DELAY)
+            if watcher:
+                sys.exit(0)
+        else:
+            print("Connection failed. Exception traceback printed above.")
+    except KeyboardInterrupt:
+        sys.exit(0)
+
 
 if __name__ == "__main__":
-    slack_client = env_setup()
-    if slack_client.rtm_connect(with_team_state=False):
-        print("Starter Bot connected and running!")
-        # Read bot's user ID by calling Web API method `auth.test`
-        starterbot_id = slack_client.api_call("auth.test")["user_id"]
-        while not watcher:
-            print watcher
-            print 'running'
-            command, channel = parse_bot_commands(slack_client.rtm_read())
-            if command:
-                handle_command(command, channel)
-            time.sleep(RTM_READ_DELAY)
-        if watcher:
-            sys.exit(0)
-    else:
-        print("Connection failed. Exception traceback printed above.")
+    main()

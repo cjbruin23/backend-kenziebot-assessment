@@ -16,6 +16,5 @@ class TestStringMethods(unittest.TestCase):
             'type': 'message', 'channel': 'DCPRDV43T'}]), ('exit', 'DCPRDV43T'))
 
 
-
 if __name__ == '__main__':
     unittest.main()
