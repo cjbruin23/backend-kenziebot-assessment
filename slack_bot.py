@@ -22,7 +22,7 @@ RTM_READ_DELAY = 1  # 1 second delay between reading from RTM
 EXAMPLE_COMMAND = "do"
 INSULT_COMMAND = "insult"
 EXIT_COMMAND = "exit"
-FINANCE_COMMAND = "financials"
+FINANCE_COMMAND = "get financials"
 MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
 watcher = False
@@ -30,7 +30,6 @@ watcher = False
 def env_setup():
 
     # instantiate Slack client
-    print(os.getenv('SLACK_BOT_TOKEN', 'Token not found'))
     slack_client = SlackClient(os.getenv('SLACK_BOT_TOKEN', 'Token not found'))
     return slack_client
 
@@ -72,7 +71,7 @@ def configure_logging():
     sh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(sh)
 
-    rh = logging.handlers.RotatingFileHandler('slack_bot.log', maxBytes=1000, backupCount=5)
+    rh = logging.handlers.RotatingFileHandler('slack_bot.log', maxBytes=2000, backupCount=5)
     logger.addHandler(rh)
 
 
@@ -123,15 +122,23 @@ def handle_command(command, channel, slack_client):
         insult_name = command_lst[1]
         response = "{} is ranked 14/14 in your cohort".format(insult_name)
     elif command.startswith(FINANCE_COMMAND):
-        start = dt.datetime(2000,1,1)
-        end = dt.datetime(2016,12,31)
-        df = web.DataReader('TSLA', 'yahoo', start, end)
-        print(df.head())
+            command_words = command.split(" ")
+            start = dt.datetime(2000,1,1)
+            end = dt.datetime.today()
+            for word in command_words:
+                if word.isupper():
+                    df = web.DataReader(word, 'yahoo', start, end)
+                    stock_high = round(float(df["High"].iloc[-1]), 4)
+                    stock_low = round(float(df["Low"].iloc[-1]), 4)
+                    print(stock_high, stock_low)
+                    response = "The High is {}, and the low is {}".format(stock_high, stock_low)
+                else:
+                    continue
+            # response = "That is not a company. Make sure the companies ticker name is in uppercase"
     elif command.startswith(EXIT_COMMAND):
         global watcher
         watcher = True
         response = "Bye Bye"
-        
 
     # Sends the response back to the channel
     slack_client.api_call(
@@ -140,7 +147,7 @@ def handle_command(command, channel, slack_client):
         text=response or default_response
     )
 
-    
+
 def main():
     
     slack_client = env_setup()
