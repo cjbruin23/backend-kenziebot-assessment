@@ -127,11 +127,14 @@ def handle_command(command, channel, slack_client):
             end = dt.datetime.today()
             for word in command_words:
                 if word.isupper():
-                    df = web.DataReader(word, 'yahoo', start, end)
-                    stock_high = round(float(df["High"].iloc[-1]), 4)
-                    stock_low = round(float(df["Low"].iloc[-1]), 4)
-                    print(stock_high, stock_low)
-                    response = "The High is {}, and the low is {}".format(stock_high, stock_low)
+                    try:
+                        df = web.DataReader(word, 'yahoo', start, end)
+                        stock_high = round(float(df["High"].iloc[-1]), 4)
+                        stock_low = round(float(df["Low"].iloc[-1]), 4)
+                        print(stock_high, stock_low)
+                        response = "The High is {}, and the low is {}".format(stock_high, stock_low)
+                    except:
+                        response = "Sorry that is not a stock"
                 else:
                     continue
             # response = "That is not a company. Make sure the companies ticker name is in uppercase"
