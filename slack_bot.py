@@ -104,7 +104,7 @@ def parse_direct_mention(message_text):
             matches.group(2).strip()) if matches else (None, None)
 
 
-def handle_command(command, channel, slack_client):
+def handle_command(command, channel, slack_client, start_time):
     """
         Executes bot command if the command is known
     """
@@ -141,7 +141,8 @@ def handle_command(command, channel, slack_client):
     elif command.startswith(EXIT_COMMAND):
         global watcher
         watcher = True
-        response = "Bye Bye"
+        total_time = time.time() - start_time
+        response = "Time up was {}".format(total_time)
 
     # Sends the response back to the channel
     slack_client.api_call(
@@ -158,6 +159,7 @@ def main():
     try:
         if slack_client.rtm_connect(with_team_state=False):
             print("Starter Bot connected and running!")
+            start_time = time.time()
             # logging.info('Bot started up')
             logger.info('Bot started up')
 
@@ -169,7 +171,7 @@ def main():
                     # Formatting has a string conversion that helped avoid the TypeError
                     logging.info("Bot command given: {}".format(command.encode('utf-8')))
                     logger.info("Bot command given: {}".format(command.encode('utf-8')))
-                    handle_command(command, channel, slack_client)
+                    handle_command(command, channel, slack_client, start_time)
                 time.sleep(RTM_READ_DELAY)
             if watcher:
                 sys.exit(0)
