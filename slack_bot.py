@@ -143,6 +143,8 @@ def handle_command(command, channel, slack_client, start_time):
         watcher = True
         total_time = time.time() - start_time
         logging.info("Time up was {} seconds".format(total_time))
+        logger.info("Time up was {} seconds".format(total_time))
+
         response = "Time up was {} seconds".format(total_time)
 
     # Sends the response back to the channel
