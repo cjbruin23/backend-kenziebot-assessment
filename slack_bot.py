@@ -116,7 +116,7 @@ def handle_command(command, channel, slack_client):
     response = None
     # This is where you start to implement more commands!
     if command.startswith(EXAMPLE_COMMAND):
-        response = "Sure...write some more code then I can do that!"
+        response = "Here are some commands to try: {0},{1},{2}".format(INSULT_COMMAND, FINANCE_COMMAND, INSULT_COMMAND)
     elif command.startswith(INSULT_COMMAND):
         command_lst = command.split(' ')
         insult_name = command_lst[1]

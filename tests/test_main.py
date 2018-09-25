@@ -5,8 +5,6 @@ import slack_bot
 
 class TestStringMethods(unittest.TestCase):
 
-    
-
     def test_bot_commands(self):
         slack_bot.starterbot_id = "UCQ6VHPKN"
         self.assertEqual(slack_bot.parse_bot_commands(
